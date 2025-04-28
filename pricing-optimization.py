@@ -1,29 +1,17 @@
-from statsmodels.graphics.tsaplots import plot_acf
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import sklearn.metrics
-
-
-from keras.models import Sequential
-from keras.layers import LSTM
-from keras.layers import Dropout
-from keras.layers import Dense
-from keras.layers import TimeDistributed
-
 import tensorflow as tf
 import keras
 from keras import optimizers
-from keras.callbacks import History
 from keras.models import Model
-from keras.layers import Dense, Dropout, LSTM, Input, Activation, concatenate
+from keras.layers import Dense, LSTM, Input, Activation
 from sklearn.preprocessing import MinMaxScaler
-from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
 
 backcandles = 30
-trained = 0  # you can change this flag to 1 if you have already trained the model with the same data and trying to test it again
-
+trained = 1  # you can change this flag to 1 if you have already trained the model with the same data and trying to test it again
 
 def process_training_data(data):
     data.reset_index(inplace=True)
@@ -50,12 +38,10 @@ def process_training_data(data):
     y = np.reshape(yi, (len(yi), 1))
     return X, y
 
-
 def split_data_train_test(X, y):
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=1)
     return X_train, y_train, X_test, y_test
-
 
 def train_model(X_train, y_train):
     lstm_input = Input(shape=(backcandles, 6), name='lstm_input')
@@ -69,30 +55,37 @@ def train_model(X_train, y_train):
     model.compile(optimizer=adam, loss='mse')
     model.fit(x=X_train, y=y_train, batch_size=10,
               epochs=30, shuffle=True, validation_split=0.1)
-    model.save("pricing_optimization_model")
+    model.save("pricing_optimization_model.keras")
     return model
-
 
 def predict_price(X_test, y_test, model):
     y_pred = model.predict(X_test)
     pd.DataFrame(y_pred).to_csv('predicted_prices.csv')
     Score = sklearn.metrics.r2_score(y_test, y_pred)
     plt.figure(figsize=(10, 5))
-    plt.plot(y_test, color='black', label='Test')
-    plt.plot(y_pred, color='green', label='pred')
+    plt.plot(y_test, color='black', label='True')
+    plt.plot(y_pred, color='green', label='Prediction')
     plt.legend()
     plt.show()
-    plt.plot(y_pred-y_test, color='black', label='y_pred-y_test')
-    # plt.ylim([-1, 1])
+    plt.scatter(y_test, y_pred - y_test, color='blue')
+    plt.axhline(0, color='red', linestyle='--')
+    plt.title('Residual Plot')
+    plt.xlabel('True Values')
+    plt.ylabel('Prediction Error')
     plt.show()
+    plt.hist(y_pred - y_test, bins=30, color='purple', alpha=0.7)
+    plt.title('Distribution of Residuals')
+    plt.xlabel('Error')
+    plt.ylabel('Frequency')
+    plt.show()
+
     print(y_pred)
     print("the score is : ")
     print(Score)
-
+    
 
 # please place here the path of data on your pc
-data = pd.read_csv(r'F:\2onn\output_data.csv')
-
+data = pd.read_csv(r'D:\projects\lstm job\2onn\output_data.csv')
 
 #plot_acf(data, lags=100)
 #plot
@@ -103,5 +96,5 @@ X_train, y_train, X_test, y_test = split_data_train_test(x, y)
 if trained == 0:
     model = train_model(X_train, y_train)
 else:
-    model = keras.models.load_model("pricing_optimization_model")
+    model = keras.models.load_model("pricing_optimization_model.keras")
 predict_price(X_test, y_test, model)
